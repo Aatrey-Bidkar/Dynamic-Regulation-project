@@ -1,0 +1,84 @@
+basic flow goes like this: raw peaks -> sorted peaks -> merged peaks -> join/intersect or subtract 
+
+library(bedr) #this is the package that does most of the work 
+library(Dplyr) #this package is usful to get things working
+and of course, bedtools needs to be installed
+
+
+when you import your peak datasets the chr column will be a factor, this stops bedr from working
+you can use any method to change the first column of each dataset into a character, I prefer this one using Dplyr:
+
+`34MLV` %>% mutate_if(is.factor, as.character) -> `34MLV`
+
+to set up each dataset in a BED format so you can start manipulating it:
+newNames <- c( "chr", "start", "end", ...)
+names(`34MLV`) <- newNames
+
+you sort each dataset using: 
+bedr.sort.region(`34MLV`) -> `34MLV.sort`
+
+Merging the data: 
+if (is.merged.region(`34MLV.sort`)==TRUE) {(`34MLV.merged` <- `34MLV.sort`)} #checks to see if already merged either by mistake or luck and changes the name
+                                        else {(`34MLV.merged` <- bedr.merge.region(`34MLV.sort`))} #merges if not already merged 
+                                        
+ each step above is of course repeated for each dataset 
+ 
+ **Join/intersect:**
+ 
+ Joining is simple, for example: 
+ 
+`34v3MLV.joined` <- bedr.join.region(`34MLV.merged`,`3MLV.merged`) #results don't work well if the datasets ared merged. this was repeated for every combo.
+
+to us specific options of bedtools run using shell instead of bedr: 
+
+bedtools intersect -wa -a 34MLVsort.bed -b 3MLVsort.bed > 34mlvV3mlvintWA
+
+bedr has a direct api call that allows you to use options but I couldn't get it to work
+
+Example (note, still doesn't work as far as I know)
+    `34mlvV3mlvintWA`<- bedr(
+          input = list(a = `34MLV.sort`, b = `3MLV.sort`), 
+          method = "intersect", 
+          params = "-wa "
+            )
+
+
+
+** Subtract** 
+
+Subtract is also rather simple:
+
+34v3MLV.joined` <- bedr.join.region(`34MLV.merged`,`3MLV.merged`) 
+
+To use specific options you can use either shell or bedr, either worked for me:
+
+bedtools subtract -A -a 34MLVmerge.bed -b 3MLVmerge.bed > 34mlvV3mlvsubA
+
+`3mlvV34mlvsubA` <- bedr(
+        input = list(a = `3MLV.merged`, b = `34MLV.merged`), 
+        method = "subtract", 
+        params = "-A"
+        )
+
+with subtract you have to remember to switch which one is the A and the B since you get different results for either
+
+
+
+**Annotation:**
+
+my method of annotation is pretty tedious
+
+First and foremost, you ned to get HOMER and download the hg38 or hg19 genome depending on which you used
+
+then, use this to export dataframe objects:
+
+write.table(`OBJECT`, file = "OBJECT.txt", append = FALSE, quote = FALSE, sep = 
+"\t",  eol = "\n", na = "NA", dec = ".", row.names = TRUE, col.names = TRUE, qmethod
+= c("escape", "double"), fileEncoding = "")
+
+Then I load the file into excel, make sure that the Chromosome number is the first column and if the strand value is anything other then 1 or 0 change it to 0/1 
+meaning no strand 
+
+export as a TSV then you can use this in shell: 
+
+annotatePeaks.pl (SHEET NAME) hg38 > SHEET.txt
