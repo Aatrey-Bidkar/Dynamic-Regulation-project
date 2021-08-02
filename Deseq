@@ -1,0 +1,80 @@
+DEseq is th R package I used to preform differential analysis of RNA seq counts 
+
+DEseq runs using a series of specialized object types that you have to use very specifically, it was very finicky and honstly thats why it was so difficult
+
+library(deseq2)
+
+**Differntial Analysis** 
+
+The main function to prform differentialanalysis was this: 
+
+dds <- DESeqDataSetFromMatrix(
+countData = round(`Combined`), #round is used here bc the function doesnt work with non-integer values in the counts 
+colData = `coldata`,
+~ Condition,
+tidy = FALSE,
+ignoreRank = FALSE
+)
+
+It looks kind of simple but it really isnt in my opinion
+
+As the name suggests, this turns two matrices and turns them into a DDS object
+
+To prepare the Countdata I downloaded all of the RNA-seq data and isolated only the counts from that data using:
+
+value <- `object`[c("est_counts")]
+
+Then I just made the value a matrix bcause the countdata for this function must be a matrix
+
+OBJECT <- as.matrix(value)
+
+this was done for every single matrix, then they wer all put together into one big Countdata matrix
+
+`Combined` <- cbind(`40MLV.count`,`40MRV.count`,`46FRV.count`,`51FLV.count`,`53FLV.count`,`59FRV.count`,`H1.1`,`H1.2`,`H1.3`,`WTC11.1`,`WTC11.2`,`WTC11.3`)
+
+and of course, name the coulums
+
+names(`Combined`) <- c("40MLV","40MRV","46FRV","51FLV","53FLV","59FRV","H1.1","H1.2","H1.3","WTC11.1","WTC11.2","WTC11.3")
+
+The col data is pretty much the matrix that tells the function what traits a certain colum in your countdata has 
+so it can preform differential analysis based on those traits (the tilde is where you put what traits it should use in the differential analysis)
+
+so Coldata must be a matrix where th row names corrospond to the column names 
+
+coldata <- matrix((1:12, nrow= 12, ncol= 1, 
+                  dimnames = list(c("40MLV","40MRV","46FRV","51FLV","53FLV","59FRV","H1.1","H1.2","H1.3","WTC11.1","WTC11.2","WTC11.3"), 
+                  c("Condition")))
+                  
+ The change the values in this singular column to ither child or adult in this case dy doing the following for each number in the matrix: 
+ 
+ coldata[coldata==X]<- c("adult" or "child)
+ 
+ then you plug it into the DDSfromMatrix command
+ 
+ **DEseq and Results** 
+ 
+ Differential analysis is the simplest part to be honest
+ 
+ "DiffEXP" <- DESeq(`dds`)
+ 
+ to get the results I used: 
+ 
+ FilterData <- results(
+DiffEXP,
+lfcThreshold = 1,
+altHypothesis = c("greaterAbs"),
+alpha = 0.05,
+pAdjustMethod = "BH",
+format = c("DataFrame"),
+tidy = FALSE,
+parallel = FALSE,
+minmu = 0.5
+)
+
+Now I am unsure of one thing, the results function turns the DEseq dataset into a Deseqresults object which cant be used for a lot of things including PCA plots 
+
+I don't really know how to filter the raw result from DESeq without turning it into a results so I just made a preliminary Pca plot using: 
+
+normalizeddata <- vst(DiffEXP, blind=FALSE) #vst extracts some kind of normalized data from what I undrstand, I read up on it but dont totally understand
+
+plotPCA(normalizeddata, intgroup = c("Condition", "sizeFactor")) #intgroup are the factors considered when making the PCA plot
